@@ -3,15 +3,15 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://127.0.0.1:8000/api/:path*"
+      "destination": " https://bunch-avon-aggregate-named.trycloudflare.com/api/:path*"
     },
     {
       "source": "/checkout",
-      "destination": "https://127.0.0.1:8000/checkout"
+      "destination": "https://bunch-avon-aggregate-named.trycloudflare.com/checkout"
     },
     {
       "source": "/orders/:path*",
-      "destination": "https://127.0.0.1:8000/orders/:path*"
+      "destination": "https://bunch-avon-aggregate-named.trycloudflare.com/orders/:path*"
     }
   ]
 }
