@@ -10,6 +10,10 @@ from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_
 from common import engine, sql, http, app, start, rabbit
 
 def send_email(event):
+    if os.getenv('EMAIL_MODE','smtp')=='mock':
+        # Local-only simulation: log the email instead of sending it.
+        print(f"[MOCK EMAIL] To: {event['email']} | Subject: Order confirmed {event['order_id']} | Body: Your order {event['order_id']} is confirmed.",flush=True)
+        return
     required=['SMTP_HOST','SMTP_USER','SMTP_PASSWORD','SMTP_FROM']
     missing=[k for k in required if not os.getenv(k)]
     if missing:raise RuntimeError('SMTP missing: '+','.join(missing))

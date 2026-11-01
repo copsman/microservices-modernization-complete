@@ -119,7 +119,7 @@ def purge_queue():
 
 def providers():
     smtp=all(os.getenv(name) for name in ("SMTP_HOST","SMTP_USER","SMTP_PASSWORD","SMTP_FROM"))
-    return {"stripe":bool(os.getenv("STRIPE_SECRET_KEY")),"smtp":bool(smtp)}
+    return {"stripe":bool(os.getenv("STRIPE_SECRET_KEY")) or os.getenv("PAYMENT_MODE")=="mock","smtp":bool(smtp) or os.getenv("EMAIL_MODE")=="mock"}
 
 @app.get("/")
 def dashboard():

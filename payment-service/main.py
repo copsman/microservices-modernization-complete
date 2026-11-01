@@ -16,6 +16,12 @@ class Charge(BaseModel):
 
 @app.post('/charge')
 def charge(b:Charge):
+    if os.getenv('PAYMENT_MODE','stripe')=='mock':
+        # Local-only simulation: no call to Stripe. Clearly labelled with a mock_ prefix.
+        with engine.begin() as c:
+            c.execute(text("INSERT INTO payments.charges(order_id,stripe_id,status) VALUES (:id,:sid,'succeeded') ON CONFLICT(order_id) DO NOTHING"),{'id':b.order_id,'sid':'mock_pi_'+b.order_id})
+            prev=c.execute(text('SELECT stripe_id,status FROM payments.charges WHERE order_id=:id'),{'id':b.order_id}).mappings().first()
+        return {'provider_id':prev['stripe_id'],'status':prev['status'],'mock':True}
     key=os.getenv('STRIPE_SECRET_KEY','')
     if not key:raise HTTPException(503,'STRIPE_SECRET_KEY not configured; no payment attempted')
     with engine.connect() as c:
@@ -44,11 +50,13 @@ def reset_lab():
 
 @app.get('/status/{order_id}')
 def payment_status(order_id:str):
+    mock=os.getenv('PAYMENT_MODE','stripe')=='mock'
     key=os.getenv('STRIPE_SECRET_KEY','')
-    if not key:raise HTTPException(503,'Stripe not configured')
+    if not key and not mock:raise HTTPException(503,'Stripe not configured')
     with engine.connect() as c:
         sid=c.execute(text('SELECT stripe_id FROM payments.charges WHERE order_id=:id'),{'id':order_id}).scalar_one_or_none()
     if not sid:raise HTTPException(404,'No payment intent')
+    if mock:return {'status':'succeeded','provider_id':sid,'mock':True}
     stripe.api_key=key
     try:intent=stripe.PaymentIntent.retrieve(sid)
     except stripe.error.StripeError as e:raise HTTPException(502,str(e))

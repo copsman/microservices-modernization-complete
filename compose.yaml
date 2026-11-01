@@ -6,7 +6,7 @@ x-app: &app
       condition: service_completed_successfully
     rabbitmq:
       condition: service_healthy
-  networks: [backend]
+  networks: [ backend ]
 services:
   postgres:
     image: postgres:16-alpine
@@ -14,39 +14,41 @@ services:
       POSTGRES_USER: lab
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set password in .env}
       POSTGRES_DB: lab
-    volumes: [pgdata:/var/lib/postgresql/data]
+    volumes: [ pgdata:/var/lib/postgresql/data ]
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U lab -d lab"]
+      test: [ "CMD-SHELL", "pg_isready -U lab -d lab" ]
       interval: 3s
       retries: 30
-    networks: [backend]
+    networks: [ backend ]
   rabbitmq:
     image: rabbitmq:3.13-management-alpine
-    ports: ["127.0.0.1:15672:15672"]
+    ports: [ "127.0.0.1:15672:15672" ]
     healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      test: [ "CMD", "rabbitmq-diagnostics", "-q", "ping" ]
       interval: 5s
       retries: 20
-    networks: [backend]
+    networks: [ backend ]
   schema-init:
     build:
       context: .
-      args: {SERVICE_DIR: common}
-    command: ["python", "-m", "common.schema"]
+      args: { SERVICE_DIR: common }
+    command: [ "python", "-m", "common.schema" ]
     environment:
       DATABASE_URL: postgresql+psycopg://lab:${POSTGRES_PASSWORD}@postgres:5432/lab
     depends_on:
-      postgres: {condition: service_healthy}
-    networks: [backend]
+      postgres: { condition: service_healthy }
+    networks: [ backend ]
   gateway:
     <<: *app
     build:
       context: .
-      args: {SERVICE_DIR: api-gateway}
+      args: { SERVICE_DIR: api-gateway }
     environment:
       SERVICE_NAME: gateway
       DATABASE_URL: postgresql+psycopg://lab:${POSTGRES_PASSWORD}@postgres:5432/lab
       AMQP_URL: amqp://guest:guest@rabbitmq:5672/%2F
+      PAYMENT_MODE: ${PAYMENT_MODE:-stripe}
+      EMAIL_MODE: ${EMAIL_MODE:-smtp}
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-587}
@@ -54,12 +56,12 @@ services:
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
       SMTP_FROM: ${SMTP_FROM:-}
       LEGACY_WRITES_ENABLED: ${LEGACY_WRITES_ENABLED:-false}
-    ports: ["127.0.0.1:8000:8000"]
+    ports: [ "127.0.0.1:8000:8000" ]
   order:
     <<: *app
     build:
       context: .
-      args: {SERVICE_DIR: order-service}
+      args: { SERVICE_DIR: order-service }
     environment:
       SERVICE_NAME: order
       DATABASE_URL: postgresql+psycopg://lab:${POSTGRES_PASSWORD}@postgres:5432/lab
@@ -75,7 +77,7 @@ services:
     <<: *app
     build:
       context: .
-      args: {SERVICE_DIR: inventory-service}
+      args: { SERVICE_DIR: inventory-service }
     environment:
       SERVICE_NAME: inventory
       DATABASE_URL: postgresql+psycopg://lab:${POSTGRES_PASSWORD}@postgres:5432/lab
@@ -91,11 +93,12 @@ services:
     <<: *app
     build:
       context: .
-      args: {SERVICE_DIR: payment-service}
+      args: { SERVICE_DIR: payment-service }
     environment:
       SERVICE_NAME: payment
       DATABASE_URL: postgresql+psycopg://lab:${POSTGRES_PASSWORD}@postgres:5432/lab
       AMQP_URL: amqp://guest:guest@rabbitmq:5672/%2F
+      PAYMENT_MODE: ${PAYMENT_MODE:-stripe}
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-587}
@@ -107,7 +110,7 @@ services:
     <<: *app
     build:
       context: .
-      args: {SERVICE_DIR: notification-service}
+      args: { SERVICE_DIR: notification-service }
     environment:
       SERVICE_NAME: notification
       DATABASE_URL: postgresql+psycopg://lab:${POSTGRES_PASSWORD}@postgres:5432/lab
@@ -123,7 +126,7 @@ services:
     <<: *app
     build:
       context: .
-      args: {SERVICE_DIR: outbox-worker}
+      args: { SERVICE_DIR: outbox-worker }
     environment:
       SERVICE_NAME: outbox
       DATABASE_URL: postgresql+psycopg://lab:${POSTGRES_PASSWORD}@postgres:5432/lab
@@ -139,11 +142,12 @@ services:
     <<: *app
     build:
       context: .
-      args: {SERVICE_DIR: event-consumer}
+      args: { SERVICE_DIR: event-consumer }
     environment:
       SERVICE_NAME: consumer
       DATABASE_URL: postgresql+psycopg://lab:${POSTGRES_PASSWORD}@postgres:5432/lab
       AMQP_URL: amqp://guest:guest@rabbitmq:5672/%2F
+      EMAIL_MODE: ${EMAIL_MODE:-smtp}
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-587}
@@ -155,7 +159,7 @@ services:
     <<: *app
     build:
       context: .
-      args: {SERVICE_DIR: legacy-monolith}
+      args: { SERVICE_DIR: legacy-monolith }
     environment:
       SERVICE_NAME: legacy-monolith
       DATABASE_URL: postgresql+psycopg://lab:${POSTGRES_PASSWORD}@postgres:5432/lab
@@ -169,9 +173,9 @@ services:
       LEGACY_WRITES_ENABLED: ${LEGACY_WRITES_ENABLED:-false}
   prometheus:
     image: prom/prometheus:v2.53.4
-    volumes: ["./prometheus.yml:/etc/prometheus/prometheus.yml:ro"]
-    ports: ["127.0.0.1:9090:9090"]
-    networks: [backend]
+    volumes: [ "./prometheus.yml:/etc/prometheus/prometheus.yml:ro" ]
+    ports: [ "127.0.0.1:9090:9090" ]
+    networks: [ backend ]
 volumes:
   pgdata:
 networks:
