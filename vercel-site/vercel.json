@@ -3,15 +3,15 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://YOUR-BACKEND-URL/api/:path*"
+      "destination": "https://127.0.0.1:8000/api/:path*"
     },
     {
       "source": "/checkout",
-      "destination": "https://YOUR-BACKEND-URL/checkout"
+      "destination": "https://127.0.0.1:8000/checkout"
     },
     {
       "source": "/orders/:path*",
-      "destination": "https://YOUR-BACKEND-URL/orders/:path*"
+      "destination": "https://127.0.0.1:8000/orders/:path*"
     }
   ]
 }
