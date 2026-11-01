@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Checkout floor</title>
+<style>
+  :root {
+    --bg: #efe6d6;
+    --panel: #f7f1e6;
+    --ink: #241c16;
+    --muted: #5c5146;
+    --line: #cbbfaa;
+    --rust: #9d3b16;
+    --rust-ink: #fff8f4;
+    --good: #245c32;
+    --good-bg: #e4f0e2;
+    --amber: #7a5410;
+    --amber-bg: #f6ecd4;
+    --bad: #7f2424;
+    --bad-bg: #f6e4e1;
+    --wait: #6b6258;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 18px/1.45 "Iowan Old Style", Palatino, Georgia, serif;
+  }
+  header, main { width: min(1180px, calc(100% - 32px)); margin: 0 auto; }
+  header { padding: 28px 0 8px; display: flex; justify-content: space-between; gap: 24px; align-items: flex-end; }
+  .kicker { margin: 0 0 4px; letter-spacing: 0.08em; text-transform: uppercase; font: 12px/1.2 ui-monospace, "SFMono-Regular", Menlo, monospace; color: var(--rust); }
+  h1 { margin: 0; font-size: 42px; font-weight: 650; letter-spacing: -0.03em; }
+  h2 { margin: 0 0 10px; font-size: 22px; }
+  p { margin: 0; }
+  .sub { color: var(--muted); max-width: 46rem; margin-top: 8px; }
+  a { color: var(--rust); }
+  button, input { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  :focus-visible { outline: 3px solid var(--rust); outline-offset: 2px; }
+  .health, .chips { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+  .pill, .chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    border: 1px solid var(--line); border-radius: 999px;
+    padding: 4px 10px; background: var(--panel);
+    font: 13px/1.2 ui-monospace, "SFMono-Regular", Menlo, monospace;
+  }
+  .pill[data-status="CONFIRMED"], .dot.on { background: var(--good-bg); color: var(--good); border-color: #b7d4b4; }
+  .pill[data-status="AWAITING_PAYMENT"], .pill[data-status="PENDING"] { background: var(--amber-bg); color: var(--amber); }
+  .pill[data-status="PAYMENT_UNKNOWN"] { background: #f8e7df; color: var(--rust); }
+  .pill[data-status="REJECTED"], .pill[data-status="CANCELLED"], .dot.off { background: var(--bad-bg); color: var(--bad); border-color: #e4bdb8; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--wait); display: inline-block; }
+  nav[role="tablist"] { display: flex; gap: 8px; width: min(1180px, calc(100% - 32px)); margin: 20px auto 0; }
+  [role="tab"] {
+    border: 1px solid var(--line); background: transparent; border-radius: 999px; padding: 8px 16px;
+  }
+  [role="tab"][aria-selected="true"] { background: var(--ink); color: #f7f1e6; border-color: var(--ink); }
+  main { padding: 18px 0 48px; }
+  .layout { display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 18px; align-items: start; }
+  header, main, nav, .layout > *, .panel, .saga, .say, .lesson { min-width: 0; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 16px; }
+  .saga { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; }
+  .box { flex: 1 0 118px; min-height: 108px; border: 2px solid var(--line); border-radius: 12px; padding: 10px; background: #fffdf8; }
+  .box strong { display: block; font-size: 15px; }
+  .box span { display: block; margin-top: 6px; color: var(--muted); font-size: 14px; }
+  .box[data-state="done"] { border-color: var(--good); }
+  .box[data-state="now"] { border-color: var(--rust); background: #fff6f1; }
+  .box[data-state="stop"] { border-color: var(--bad); background: #fdf6f5; }
+  .box[data-state="wait"] { color: var(--wait); }
+  .say { margin-top: 14px; padding: 14px 16px 16px; background: #fffdf8; border-left: 4px solid var(--rust); }
+  .say small { display: block; margin-bottom: 6px; color: var(--rust); font: 12px/1.2 ui-monospace, Menlo, monospace; letter-spacing: 0.06em; text-transform: uppercase; }
+  .lesson { font-size: 20px; }
+  ol { margin: 8px 0 0; padding-left: 22px; }
+  li { margin: 10px 0; }
+  li .hint { display: block; color: var(--muted); font-size: 15px; }
+  li.done { color: var(--good); }
+  li.now { font-weight: 650; }
+  form { display: grid; gap: 10px; }
+  label { display: grid; gap: 4px; font-size: 15px; color: var(--muted); }
+  input {
+    border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; background: #fffdf8; font-size: 18px;
+  }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; }
+  .primary, .secondary, .quiet {
+    border-radius: 10px; padding: 10px 14px; min-height: 44px; border: 1px solid var(--ink);
+  }
+  .primary { background: var(--rust); color: var(--rust-ink); border-color: var(--rust); }
+  .secondary { background: var(--ink); color: #f7f1e6; }
+  .quiet { background: transparent; }
+  button:disabled { opacity: 0.55; cursor: wait; }
+  #last { margin-top: 12px; font-family: ui-monospace, "SFMono-Regular", Menlo, monospace; font-size: 14px; white-space: pre-wrap; }
+  .secret { margin-top: 8px; word-break: break-all; }
+  .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+  .card { border: 1px solid var(--line); border-radius: 12px; padding: 12px; background: #fffdf8; }
+  .card b { display: block; font-size: 32px; letter-spacing: -0.04em; }
+  .card small { color: var(--muted); font-family: ui-monospace, Menlo, monospace; font-size: 12px; }
+  .stack { display: grid; gap: 14px; }
+  table { width: 100%; border-collapse: collapse; font-size: 15px; }
+  th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font: 12px/1.2 ui-monospace, Menlo, monospace; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+  .table-wrap { overflow-x: auto; }
+  .empty { color: var(--muted); }
+  .meter { position: relative; height: 22px; background: #fffdf8; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; }
+  .meter i { display: block; height: 100%; background: #e7b59a; }
+  .meter i.over { background: #e07a62; }
+  .budget { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--ink); }
+  .meter-row { display: grid; grid-template-columns: 130px 1fr 90px; gap: 8px; align-items: center; margin: 8px 0; font-family: ui-monospace, Menlo, monospace; font-size: 13px; }
+  footer { color: var(--muted); font-size: 15px; margin-top: 8px; }
+  @media (max-width: 860px) {
+    h1 { font-size: 34px; }
+    header, .layout, .cards, .meter-row { display: grid; grid-template-columns: 1fr; }
+    .health, .chips { justify-content: flex-start; }
+    header { align-items: start; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <p class="kicker">Microservices modernization lab</p>
+    <h1>Checkout floor</h1>
+    <p class="sub">A shop is buying two units of one product. We will watch each small program do its own job, and we will read every result out loud before we click the next button.</p>
+  </div>
+  <div>
+    <div class="chips" id="providers"></div>
+    <div class="health" id="health" style="margin-top:8px"></div>
+  </div>
+</header>
+<nav role="tablist" aria-label="Classroom views">
+  <button role="tab" id="tab-use" aria-controls="panel-use" aria-selected="true" type="button">Lesson</button>
+  <button role="tab" id="tab-board" aria-controls="panel-board" aria-selected="false" type="button">Live board</button>
+  <button role="tab" id="tab-telemetry" aria-controls="panel-telemetry" aria-selected="false" type="button">Telemetry</button>
+</nav>
+<main>
+  <section role="tabpanel" id="panel-use" aria-labelledby="tab-use">
+    <div class="layout">
+      <div class="panel">
+        <h2>Where this order is</h2>
+        <div class="saga" id="saga"></div>
+        <div class="say">
+          <small id="stepnow">Opening the class</small>
+          <p class="lesson" id="lesson">Loading the class…</p>
+        </div>
+        <h2 style="margin-top:18px">Do these steps in order</h2>
+        <ol id="checks"></ol>
+      </div>
+      <div class="panel">
+        <div class="cards" id="stockline"></div>
+        <form id="checkout">
+          <label>Order id, the name of this purchase <input id="order_id" name="order_id" value="o-104" required></label>
+          <label>Product code. A1 is the only product in the lab <input id="sku" name="sku" value="A1" required></label>
+          <label>How many units to hold <input id="qty" name="qty" type="number" min="1" value="2" required></label>
+          <label>Email, where a confirmation would go <input id="email" name="email" type="email" value="student@example.com" required></label>
+          <label>Repeat ticket. The same ticket must not buy twice <input id="idem" name="idem" value="demo-1" required></label>
+          <div class="row">
+            <button class="primary" type="submit">Submit checkout</button>
+            <button class="secondary" id="reconcile" type="button">Reconcile</button>
+            <button class="quiet" id="reset" type="button">Reset lab</button>
+          </div>
+        </form>
+        <p id="last" role="status">Press Submit checkout when the class is looking at the two stock numbers.</p>
+        <p class="secret" id="secret"></p>
+      </div>
+    </div>
+  </section>
+  <section role="tabpanel" id="panel-board" aria-labelledby="tab-board" hidden>
+    <div class="stack">
+      <article class="panel"><h2>Orders</h2><p class="sub">The order program's own notebook. One row is one purchase.</p><div class="table-wrap" id="orders"></div></article>
+      <article class="panel"><h2>Reservations</h2><p class="sub">Units the new shelf is holding for an order. Held units are no longer free to sell.</p><div class="table-wrap" id="reservations"></div></article>
+      <article class="panel"><h2>Outbox</h2><p class="sub">A note saved in the same step as "order confirmed," so a crash cannot lose the request to send the email.</p><div class="table-wrap" id="outbox"></div></article>
+      <article class="panel"><h2>Payments</h2><p class="sub">What the payment program stored after talking to Stripe. Empty means Stripe was never reached.</p><div class="table-wrap" id="charges"></div></article>
+      <article class="panel"><h2>Notifications</h2><p class="sub">A row appears only after an email is actually accepted. No row means no email was sent.</p><div class="table-wrap" id="deliveries"></div></article>
+      <article class="panel"><h2>Waiting line for confirmed orders</h2><p class="sub">RabbitMQ holds the "order confirmed" message until the email program takes it.</p><div id="queuecard"></div></article>
+    </div>
+  </section>
+  <section role="tabpanel" id="panel-telemetry" aria-labelledby="tab-telemetry" hidden>
+    <div class="panel">
+      <h2>How long each program took</h2>
+      <p class="sub">The dark line is 365 milliseconds, about one third of a second. That is a speed target for this lesson. We measure it. A slow call is still accepted. These numbers skip the dashboard's own refresh.</p>
+      <div id="telemetry" style="margin-top:14px"></div>
+      <p class="sub" style="margin-top:16px">Prometheus: <a href="http://localhost:9090" target="_blank" rel="noreferrer">localhost:9090</a> · try <code>lab_http_seconds_count</code><br>
+      RabbitMQ: <a href="http://localhost:15672" target="_blank" rel="noreferrer">localhost:15672</a> (guest / guest) · API docs: <a href="/docs">/docs</a></p>
+      <p class="sub" id="updated" style="margin-top:10px"></p>
+    </div>
+  </section>
+  <footer>This page is the classroom view. The written script for the lesson is <code>docs/teaching-notes.md</code>. Reset puts the shop back to the start: product A1 has 5 units again, and the practice order is deleted.</footer>
+</main>
+<script>
+const NAMES = {gateway:"Gateway", order:"Order", inventory:"Inventory", payment:"Payment", notification:"Notification", legacy:"Legacy", rabbitmq:"RabbitMQ"}
+const BUDGET = 365
+const seen = {replayed:false, conflict:false, reconcile:false}
+let board = null
+let pause = false
+
+function el(tag, text, className) {
+  const node = document.createElement(tag)
+  if (className) node.className = className
+  if (text != null) node.textContent = String(text)
+  return node
+}
+function clear(node) { node.replaceChildren() }
+function serviceOk(name) {
+  return !!(board && board.services && board.services.some(s => s.name === name && s.healthy))
+}
+function skuQty(rows, sku) {
+  const row = (rows || []).find(item => item.sku === sku)
+  return row ? row.available : null
+}
+function payloadOf(row) {
+  if (!row || row.payload == null) return {}
+  if (typeof row.payload === "string") {
+    try { return JSON.parse(row.payload) } catch { return {} }
+  }
+  return row.payload
+}
+function selectedOrder() {
+  if (!board) return null
+  const id = document.getElementById("order_id").value.trim()
+  return (board.orders || []).find(order => order.id === id) || null
+}
+function detailOf(data) {
+  if (!data) return ""
+  if (typeof data.detail === "string") return data.detail
+  if (data.detail != null) return JSON.stringify(data.detail)
+  if (data.reason) return String(data.reason)
+  return ""
+}
+function showTab(id) {
+  document.querySelectorAll('[role="tab"]').forEach(button => {
+    button.setAttribute("aria-selected", button.getAttribute("aria-controls") === id ? "true" : "false")
+  })
+  document.querySelectorAll('[role="tabpanel"]').forEach(panel => { panel.hidden = panel.id !== id })
+}
+document.querySelectorAll('[role="tab"]').forEach(button => {
+  button.addEventListener("click", () => showTab(button.getAttribute("aria-controls")))
+})
+
+function sagaModel(order) {
+  const reservation = order && (board.reservations || []).find(row => row.order_id === order.id)
+  const events = order ? (board.outbox || []).filter(row => payloadOf(row).order_id === order.id) : []
+  const published = events.some(row => row.published)
+  const delivered = events.some(row => (board.deliveries || []).some(item => item.event_id === row.event_id))
+  const status = order && order.status
+  const stock = skuQty(board.stock, "A1")
+  const steps = [
+    {title:"Stock", detail: stock == null ? "Waiting" : `${stock} available`, state: serviceOk("inventory") ? "done" : "stop"},
+    {title:"Reserve", detail:"Not requested", state:"wait"},
+    {title:"Payment", detail: board.providers && board.providers.stripe ? "Stripe" : "No Stripe key", state:"wait"},
+    {title:"Reconcile", detail:"Not yet", state:"wait"},
+    {title:"Outbox", detail:"No event", state:"wait"},
+    {title:"RabbitMQ", detail:"No event", state:"wait"},
+    {title:"Email", detail: board.providers && board.providers.smtp ? "SMTP ready" : "No SMTP", state:"wait"}
+  ]
+  if (!order) return steps
+  if (status === "REJECTED") {
+    steps[1] = {title:"Reserve", detail:"Refused", state:"stop"}
+    return steps
+  }
+  steps[1] = {title:"Reserve", detail: reservation ? `${reservation.qty} ${reservation.state}` : "Held", state:"done"}
+  if (status === "PAYMENT_UNKNOWN") steps[2] = {title:"Payment", detail:"Unknown", state:"stop"}
+  else if (status === "AWAITING_PAYMENT") steps[2] = {title:"Payment", detail:"Awaiting", state:"now"}
+  else if (status === "CONFIRMED" || status === "CANCELLED") steps[2] = {title:"Payment", detail: status === "CONFIRMED" ? "Succeeded" : "Closed", state:"done"}
+  if (status === "CONFIRMED" || status === "CANCELLED") steps[3] = {title:"Reconcile", detail:status === "CONFIRMED" ? "Confirmed" : "Released", state:"done"}
+  else steps[3] = {title:"Reconcile", detail:"Ask Stripe", state:"now"}
+  if (status === "CONFIRMED") {
+    steps[4] = events.length ? {title:"Outbox", detail:`${events.length} row`, state:"done"} : {title:"Outbox", detail:"Writing", state:"now"}
+    steps[5] = published ? {title:"RabbitMQ", detail:"Published", state:"done"} : {title:"RabbitMQ", detail: events.length ? "Waiting" : "No event", state: events.length ? "now" : "wait"}
+    if (delivered) steps[6] = {title:"Email", detail:"Recorded", state:"done"}
+    else if (published && !(board.providers && board.providers.smtp)) steps[6] = {title:"Email", detail:"Retrying", state:"stop"}
+    else if (published) steps[6] = {title:"Email", detail:"Sending", state:"now"}
+  }
+  return steps
+}
+function teach(order) {
+  if (!board) return {kicker: "Opening the class", text: "Loading the class…"}
+  if (!serviceOk("inventory") || !serviceOk("legacy")) return {kicker: "Wait for the programs", text: "One of the stock programs is not answering. Look at the names along the top. A red dot means that program is down, so we stop and say so."}
+  const fresh = skuQty(board.stock, "A1")
+  const old = skuQty(board.legacy, "A1")
+  if (!order) return {
+    kicker: "Step 1 · Two copies of the stock",
+    text: `Look at the two numbers beside the form. Product A1 has ${fresh ?? "—"} units on the new shelf and ${old ?? "—"} in the old program. They match today, and they are still separate notebooks. Press Submit checkout. We are asking the new shelf to hold 2 units.`
+  }
+  if (order.status === "REJECTED") return {
+    kicker: "The shelf said no",
+    text: `The new shelf refused this order, so nobody asked for payment. ${order.error || "There were not enough units, or the product code is not A1."} Lower the quantity, or press Reset lab and start again.`
+  }
+  if (order.status === "CANCELLED") return {
+    kicker: "The hold was given back",
+    text: "Stripe told us the payment would not be taken. The new shelf released the hold and put the units back. The old program was never part of this purchase."
+  }
+  if (order.status === "CONFIRMED") {
+    const events = (board.outbox || []).filter(row => payloadOf(row).order_id === order.id)
+    const published = events.some(row => row.published)
+    const delivered = events.some(row => (board.deliveries || []).some(item => item.event_id === row.event_id))
+    if (!events.length) return {kicker: "Step 5 · Save the order and the note together", text: "The order is confirmed. In the same save, the order program writes a note that says please announce this. That note is the outbox. Watch the Live board. The note should appear there."}
+    if (!published) return {kicker: "Step 6 · Hand the note to the waiting line", text: "The outbox note is saved and not yet handed off. A small worker reads that note, gives it to RabbitMQ, and only then marks the note as published."}
+    if (!delivered && !board.providers.smtp) return {kicker: "Step 7 · Email is at least once", text: "RabbitMQ has the confirmed-order message. Mail is not configured, so the email program keeps trying and does not invent a success. If mail were configured and the program crashed after the mailbox accepted the message, the same email could be sent again."}
+    if (!delivered) return {kicker: "Step 7 · Wait for the mailbox", text: "The message is on the waiting line. A notification row appears only after the mailbox accepts the email."}
+    return {kicker: "The sale is finished", text: "The mailbox accepted the email, and we recorded that. The new stock stays lower because the units were sold. The reservation row stays as the record of the hold. The old program's number never moved."}
+  }
+  if (order.status === "AWAITING_PAYMENT" && !seen.reconcile) return {
+    kicker: "Step 4 · A started payment is not a finished payment",
+    text: "Stripe created a payment and is waiting for the customer to confirm it. That is not a charge yet. Confirm it with Stripe's own page. Do not type a card number into this lab. Then press Reconcile, which asks Stripe what the final answer was."
+  }
+  if (!seen.replayed) return {
+    kicker: "Step 2 · Hold the units, and do not guess about money",
+    text: `The new shelf now shows ${fresh ?? "—"}. The old program still shows ${old ?? "—"}. Two units are on hold. That hold is called a reservation. ${board.providers.stripe ? "Payment did not come back with a clear yes or no." : "Stripe is not configured, so no charge was attempted."} The order stays PAYMENT_UNKNOWN. We keep the hold. Press Submit checkout again without changing the form.`
+  }
+  if (!seen.conflict) return {
+    kicker: "Step 3 · The same ticket must mean the same purchase",
+    text: "The second click was a replay. Same ticket, same details, same order. The shelf did not hold another 2 units. Now change the quantity to 9 and press Submit checkout again, still using the ticket demo-1. One ticket cannot mean two different purchases, so the lab should refuse."
+  }
+  if (!seen.reconcile) return {
+    kicker: "Step 4 · Ask again before giving the stock back",
+    text: `The changed quantity was refused. Ticket demo-1 still belongs to the first order. The new shelf shows ${fresh ?? "—"}, and the hold is still there. Press Reconcile. That asks Stripe again. With no Stripe answer, we still do not know, so the hold stays.`
+  }
+  return {
+    kicker: "End of the lesson",
+    text: `You have seen the whole safe path. The new shelf held 2 units, a repeated click did not hold them again, a changed quantity was refused, and Reconcile left the hold in place because payment is still unknown. The old stock is still ${old ?? "—"}. Open Live board to name each table, then Telemetry to see how long the calls took. Press Reset lab before the next group.`
+  }
+}
+
+function fillHealth() {
+  const host = document.getElementById("health")
+  clear(host)
+  const rows = [{name:"gateway", healthy:true}].concat(board.services || [])
+  rows.forEach(service => {
+    const chip = el("span", NAMES[service.name] || service.name, "chip")
+    const dot = el("i", "", service.healthy ? "dot on" : "dot off")
+    chip.prepend(dot)
+    host.append(chip)
+  })
+  const providers = document.getElementById("providers")
+  clear(providers)
+  const stripe = el("span", board.providers.stripe ? "Stripe configured" : "Stripe not configured", "chip")
+  const smtp = el("span", board.providers.smtp ? "SMTP configured" : "SMTP not configured", "chip")
+  providers.append(stripe, smtp)
+}
+function fillStock() {
+  const host = document.getElementById("stockline")
+  clear(host)
+  const pairs = [["Inventory", skuQty(board.stock, "A1"), "inventory-service"], ["Legacy", skuQty(board.legacy, "A1"), "legacy-monolith"]]
+  pairs.forEach(([label, qty, source]) => {
+    const card = el("div", "", "card")
+    card.append(el("small", source), el("b", qty == null ? "—" : String(qty)), el("span", label))
+    host.append(card)
+  })
+}
+function fillSaga() {
+  const order = selectedOrder()
+  const host = document.getElementById("saga")
+  clear(host)
+  sagaModel(order).forEach(step => {
+    const box = el("div", "", "box")
+    box.dataset.state = step.state
+    box.append(el("strong", step.title), el("span", step.detail))
+    host.append(box)
+  })
+  const spoken = teach(order)
+  document.getElementById("stepnow").textContent = spoken.kicker
+  document.getElementById("lesson").textContent = spoken.text
+}
+function fillChecks() {
+  const order = selectedOrder()
+  const reservation = order && (board.reservations || []).some(row => row.order_id === order.id)
+  const items = [
+    ["Look at both stock numbers", "The new shelf and the old program.", serviceOk("inventory") && serviceOk("legacy")],
+    ["Press Submit checkout", "Ask the new shelf to hold 2 units.", !!order],
+    ["Read the hold", "Two units are reserved, or the shelf refused.", !!order && (reservation || order.status === "REJECTED")],
+    ["Press Submit checkout again", "Same ticket, same details. The hold must not double.", seen.replayed],
+    ["Change the quantity, then submit", "Same ticket, different purchase. This must be refused.", seen.conflict],
+    ["Press Reconcile", "Ask about the payment again before returning the units.", seen.reconcile]
+  ]
+  const list = document.getElementById("checks")
+  clear(list)
+  let markedNow = false
+  items.forEach(([title, hint, done]) => {
+    const item = el("li", "")
+    item.append(document.createTextNode(title), el("span", hint, "hint"))
+    if (done) item.className = "done"
+    else if (!markedNow) { item.className = "now"; markedNow = true }
+    list.append(item)
+  })
+}
+function table(node, columns, rows, empty) {
+  clear(node)
+  if (!rows.length) { node.append(el("p", empty, "empty")); return }
+  const wrap = document.createElement("table")
+  const head = document.createElement("tr")
+  columns.forEach(column => head.append(el("th", column.label)))
+  const thead = document.createElement("thead")
+  thead.append(head)
+  const body = document.createElement("tbody")
+  rows.forEach(row => {
+    const tr = document.createElement("tr")
+    columns.forEach(column => {
+      const td = document.createElement("td")
+      const value = column.value(row)
+      if (column.pill) {
+        const pill = el("span", value || "—", "pill")
+        pill.dataset.status = value || ""
+        td.append(pill)
+      } else td.textContent = value == null || value === "" ? "—" : String(value)
+      tr.append(td)
+    })
+    body.append(tr)
+  })
+  wrap.append(thead, body)
+  node.append(wrap)
+}
+function fillBoard() {
+  table(document.getElementById("orders"), [
+    {label:"Order", value:row => row.id},
+    {label:"Key", value:row => row.idem_key},
+    {label:"SKU", value:row => row.sku},
+    {label:"Qty", value:row => row.qty},
+    {label:"Email", value:row => row.email},
+    {label:"Status", value:row => row.status, pill:true},
+    {label:"Error", value:row => row.error}
+  ], board.orders || [], "No purchase yet. The class places one from the Lesson tab.")
+  table(document.getElementById("reservations"), [
+    {label:"Order", value:row => row.order_id},
+    {label:"SKU", value:row => row.sku},
+    {label:"Qty", value:row => row.qty},
+    {label:"State", value:row => row.state, pill:true}
+  ], board.reservations || [], "Nothing is on hold yet.")
+  table(document.getElementById("outbox"), [
+    {label:"Event", value:row => row.event_id},
+    {label:"Type", value:row => payloadOf(row).type},
+    {label:"Order", value:row => payloadOf(row).order_id},
+    {label:"Published", value:row => row.published ? "yes" : "no"}
+  ], board.outbox || [], "No note yet. A note is written only when an order becomes confirmed.")
+  table(document.getElementById("charges"), [
+    {label:"Order", value:row => row.order_id},
+    {label:"Stripe id", value:row => row.stripe_id},
+    {label:"Status", value:row => row.status, pill:true}
+  ], board.charges || [], "Stripe has not stored a payment for this lab.")
+  table(document.getElementById("deliveries"), [
+    {label:"Event", value:row => row.event_id},
+    {label:"Delivered", value:row => row.delivered_at}
+  ], board.deliveries || [], "No email has been accepted.")
+  const queue = board.queue || {}
+  const card = document.getElementById("queuecard")
+  clear(card)
+  const text = queue.connected
+    ? (queue.exists ? `${queue.messages} message(s) waiting, and ${queue.consumers} email program(s) connected.` : "RabbitMQ is up. The waiting line appears when the email program connects.")
+    : `RabbitMQ is not answering. ${queue.detail || ""}`
+  card.append(el("p", text))
+}
+function fillTelemetry() {
+  const host = document.getElementById("telemetry")
+  clear(host)
+  const rows = board.telemetry || []
+  const scale = Math.max(BUDGET, ...rows.map(row => row.avg_ms || 0), 1)
+  if (!rows.some(row => row.requests)) host.append(el("p", "The bars fill in after the class places an order.", "empty"))
+  rows.forEach(row => {
+    const line = el("div", "", "meter-row")
+    const meter = el("div", "", "meter")
+    const bar = document.createElement("i")
+    const ms = row.avg_ms || 0
+    bar.style.width = `${Math.min(100, (ms / scale) * 100)}%`
+    if (ms > BUDGET) bar.className = "over"
+    const mark = el("span", "", "budget")
+    mark.style.left = `${(BUDGET / scale) * 100}%`
+    meter.append(bar, mark)
+    line.append(el("span", NAMES[row.service] || row.service), meter, el("span", row.scraped ? `${row.requests} · ${row.avg_ms == null ? "—" : row.avg_ms + " ms"}` : "no scrape"))
+    host.append(line)
+  })
+  document.getElementById("updated").textContent = "Updated " + new Date().toLocaleTimeString()
+}
+function render() {
+  if (!board) return
+  fillHealth(); fillStock(); fillSaga(); fillChecks(); fillBoard(); fillTelemetry()
+}
+async function refresh() {
+  if (pause || refresh.lock) return
+  refresh.lock = true
+  try {
+    const response = await fetch("/api/overview")
+    if (!response.ok) throw new Error("Overview returned " + response.status)
+    board = await response.json()
+    render()
+  } catch (error) {
+    document.getElementById("stepnow").textContent = "The page cannot see the programs"
+    document.getElementById("lesson").textContent = "The classroom view could not load. " + error.message
+  } finally {
+    refresh.lock = false
+  }
+}
+function setBusy(busy) {
+  document.querySelectorAll("button").forEach(button => { button.disabled = busy })
+}
+async function act(fn) {
+  pause = true
+  setBusy(true)
+  try { await fn() }
+  finally {
+    pause = false
+    setBusy(false)
+    await refresh()
+  }
+}
+function say(text) { document.getElementById("last").textContent = text }
+document.getElementById("checkout").addEventListener("submit", event => {
+  event.preventDefault()
+  const body = {
+    order_id: document.getElementById("order_id").value.trim(),
+    sku: document.getElementById("sku").value.trim(),
+    qty: Number(document.getElementById("qty").value),
+    email: document.getElementById("email").value.trim()
+  }
+  const key = document.getElementById("idem").value.trim()
+  act(async () => {
+    const response = await fetch("/checkout", {
+      method: "POST",
+      headers: {"Content-Type": "application/json", "Idempotency-Key": key},
+      body: JSON.stringify(body)
+    })
+    const data = await response.json().catch(() => ({}))
+    const secret = document.getElementById("secret")
+    clear(secret)
+    if (data.replayed) seen.replayed = true
+    if (response.status === 409 || /mismatch/i.test(detailOf(data))) seen.conflict = true
+    if (data.replayed) say(`Same ticket, same details. This is still order ${data.order_id}. Nothing new was held.`)
+    else if (data.status === "PAYMENT_UNKNOWN") say(`The new shelf held the units for ${data.order_id}. Payment did not say yes or no. ${data.reason || ""}`)
+    else if (data.status === "REJECTED") say(`The shelf refused order ${data.order_id}. ${data.reason || ""}`)
+    else if (data.status === "AWAITING_PAYMENT") {
+      say(`Stripe started payment ${data.payment_intent} for ${data.order_id}. It is not finished. Confirm it in Stripe's own page, then press Reconcile.`)
+      if (data.client_secret) secret.append(el("span", "Stripe client secret, for Stripe's own page: " + data.client_secret))
+    }
+    else if (response.status === 409) say("Refused. " + (detailOf(data) || "This ticket was already used for a different purchase."))
+    else if (data.status) say(`Order ${data.order_id || body.order_id} is ${data.status}.`)
+    else say(detailOf(data) || `Checkout returned HTTP ${response.status}.`)
+  })
+})
+document.getElementById("reconcile").addEventListener("click", () => {
+  const id = document.getElementById("order_id").value.trim()
+  act(async () => {
+    seen.reconcile = true
+    const response = await fetch(`/orders/${encodeURIComponent(id)}/reconcile`, {method:"POST"})
+    const data = await response.json().catch(() => ({}))
+    if (response.status === 503) say(detailOf(data) || "We still cannot ask Stripe. The hold stays.")
+    else if (data.status) say(`Reconcile finished. The order is ${data.status}${data.stripe_status ? ", and Stripe says " + data.stripe_status : ""}.`)
+    else say(detailOf(data) || `Reconcile returned HTTP ${response.status}.`)
+  })
+})
+document.getElementById("reset").addEventListener("click", () => {
+  if (!confirm("Put the shop back to the start? This deletes the practice order and the hold, and product A1 goes back to 5 units.")) return
+  act(async () => {
+    const response = await fetch("/api/reset-lab", {method:"POST"})
+    const data = await response.json().catch(() => ({}))
+    seen.replayed = false; seen.conflict = false; seen.reconcile = false
+    clear(document.getElementById("secret"))
+    if (data.ok) say("The shop is back to the start. Both copies of A1 show 5, and the practice order is gone.")
+    else say("Reset did not finish cleanly. " + JSON.stringify(data))
+  })
+})
+refresh()
+setInterval(refresh, 2000)
+</script>
+</body>
+</html>
